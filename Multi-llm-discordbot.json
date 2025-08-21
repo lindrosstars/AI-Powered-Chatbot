@@ -1,0 +1,528 @@
+{
+  "name": "Multi-llm-discordbot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord-chatbot",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "23513388-c23f-49fb-b3cd-9552497b98f2",
+      "name": "Webhook",
+      "webhookId": ""
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.message_content }}",
+                    "rightValue": "!gemini",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "id": ""
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "",
+                    "leftValue": "={{ $json.body.message_content }}",
+                    "rightValue": "!groq",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "",
+                    "leftValue": "={{ $json.body.message_content }}",
+                    "rightValue": "!mistral",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message_content }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        432,
+        -288
+      ],
+      "id": "",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        496,
+        -144
+      ],
+      "id": "",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message_content }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        416,
+        0
+      ],
+      "id": "",
+      "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        496,
+        160
+      ],
+      "id": "",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message_content }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        416,
+        304
+      ],
+      "id": "",
+      "name": "Basic LLM Chain2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        512,
+        464
+      ],
+      "id": "",
+      "name": "Mistral Cloud Chat Model",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "",
+          "name": "Mistral Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This script is designed to split a long string into chunks\n// to bypass Discord's character limit.\n\nconst MAX_CHARS = 1950; // Discord limit is 2000, using 1950 for safety.\nconst textInput = items[0].json.text; //.\n\n// Handles splitting a string into chunks without cutting off words.\nconst splitMessage = (text, maxLength) => {\n  if (text.length <= maxLength) {\n    return [text];\n  }\n\n  const result = [];\n  let currentPos = 0;\n\n  while (currentPos < text.length) {\n    let chunk = text.slice(currentPos, currentPos + maxLength);\n    const remainingText = text.slice(currentPos + chunk.length);\n\n    // If there's more text and the chunk ends mid-word, find the last space.\n    if (remainingText.length > 0 && remainingText[0] !== ' ' && chunk.lastIndexOf(' ') !== -1) {\n      chunk = chunk.slice(0, chunk.lastIndexOf(' '));\n    }\n\n    result.push(chunk.trim());\n    currentPos += chunk.length;\n\n    // Advance past any leading spaces in the next chunk.\n    while (text[currentPos] === ' ') {\n      currentPos++;\n    }\n  }\n  return result;\n};\n\n// Split the input text from the LLM.\nconst messageChunks = splitMessage(textInput, MAX_CHARS);\n\n// Create an array of n8n items, one for each message chunk.\nconst outputItems = messageChunks.map(chunk => ({\n  json: {\n    message: chunk\n  }\n}));\n\nreturn outputItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        304
+      ],
+      "id": "378b8820-b010-4c77-8804-5b752cc708b1",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "N8N Test Server",
+          "cachedResultUrl": "https://discord.com/channels/"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "try-ai",
+          "cachedResultUrl": "https://discord.com/channels/"
+        },
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        320
+      ],
+      "id": "",
+      "name": "Send a message",
+      "webhookId": "",
+      "credentials": {
+        "discordBotApi": {
+          "id": "",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This script is designed to split a long string into chunks\n// to bypass Discord's character limit.\n\nconst MAX_CHARS = 1950; // Discord limit is 2000, using 1950 for safety.\nconst textInput = items[0].json.text; // 👈 Change 'llmResponse' to the correct key.\n\n// Handles splitting a string into chunks without cutting off words.\nconst splitMessage = (text, maxLength) => {\n  if (text.length <= maxLength) {\n    return [text];\n  }\n\n  const result = [];\n  let currentPos = 0;\n\n  while (currentPos < text.length) {\n    let chunk = text.slice(currentPos, currentPos + maxLength);\n    const remainingText = text.slice(currentPos + chunk.length);\n\n    // If there's more text and the chunk ends mid-word, find the last space.\n    if (remainingText.length > 0 && remainingText[0] !== ' ' && chunk.lastIndexOf(' ') !== -1) {\n      chunk = chunk.slice(0, chunk.lastIndexOf(' '));\n    }\n\n    result.push(chunk.trim());\n    currentPos += chunk.length;\n\n    // Advance past any leading spaces in the next chunk.\n    while (text[currentPos] === ' ') {\n      currentPos++;\n    }\n  }\n  return result;\n};\n\n// Split the input text from the LLM.\nconst messageChunks = splitMessage(textInput, MAX_CHARS);\n\n// Create an array of n8n items, one for each message chunk.\nconst outputItems = messageChunks.map(chunk => ({\n  json: {\n    message: chunk\n  }\n}));\n\nreturn outputItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        32
+      ],
+      "id": "1d5df2d0-1f19-4bd8-8073-83c5d6dec982",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "N8N Test Server",
+          "cachedResultUrl": "https://discord.com/channels/"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1406936115319148615",
+          "mode": "list",
+          "cachedResultName": "try-ai",
+          "cachedResultUrl": "https://discord.com/channels/"
+        },
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        64
+      ],
+      "id": "f14f983e-b5ca-4311-b3cc-6270f28777b1",
+      "name": "Send a message1",
+      "webhookId": "",
+      "credentials": {
+        "discordBotApi": {
+          "id": "",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This script is designed to split a long string into chunks\n// to bypass Discord's character limit.\n\nconst MAX_CHARS = 1950; // Discord limit is 2000, using 1950 for safety.\nconst textInput = items[0].json.text; // 👈 Change 'llmResponse' to the correct key.\n\n// Handles splitting a string into chunks without cutting off words.\nconst splitMessage = (text, maxLength) => {\n  if (text.length <= maxLength) {\n    return [text];\n  }\n\n  const result = [];\n  let currentPos = 0;\n\n  while (currentPos < text.length) {\n    let chunk = text.slice(currentPos, currentPos + maxLength);\n    const remainingText = text.slice(currentPos + chunk.length);\n\n    // If there's more text and the chunk ends mid-word, find the last space.\n    if (remainingText.length > 0 && remainingText[0] !== ' ' && chunk.lastIndexOf(' ') !== -1) {\n      chunk = chunk.slice(0, chunk.lastIndexOf(' '));\n    }\n\n    result.push(chunk.trim());\n    currentPos += chunk.length;\n\n    // Advance past any leading spaces in the next chunk.\n    while (text[currentPos] === ' ') {\n      currentPos++;\n    }\n  }\n  return result;\n};\n\n// Split the input text from the LLM.\nconst messageChunks = splitMessage(textInput, MAX_CHARS);\n\n// Create an array of n8n items, one for each message chunk.\nconst outputItems = messageChunks.map(chunk => ({\n  json: {\n    message: chunk\n  }\n}));\n\nreturn outputItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -160
+      ],
+      "id": "8c431427-aeee-42ca-94b5-d90626c361cc",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "N8N Test Server",
+          "cachedResultUrl": "https://discord.com/channels/"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "try-ai",
+          "cachedResultUrl": "https://discord.com/channels/"
+        },
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -160
+      ],
+      "id": "403e6d1f-b6a4-4be8-bf0a-f9b527a8b080",
+      "name": "Send a message2",
+      "webhookId": "",
+      "credentials": {
+        "discordBotApi": {
+          "id": "",
+          "name": "Discord Bot account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n-container:5678",
+            "user-agent": "python-requests/2.32.4",
+            "accept-encoding": "gzip, deflate",
+            "accept": "*/*",
+            "connection": "keep-alive",
+            "content-length": "149",
+            "content-type": "application/json"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "message_content": "!gemini what is a coin",
+            "channel_id": ,
+            "author_id": ,
+            "message_id":
+          },
+          "webhookUrl": "http://localhost:5678/webhook/",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain2": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ae8fe0ab-e3e5-4a82-b820-244a93b8b0a8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
+  },
+  "id": "",
+  "tags": []
+}
